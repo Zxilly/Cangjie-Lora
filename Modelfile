@@ -1,0 +1,3 @@
+FROM qwen2:7b-instruct-q5_K_M
+
+ADAPTER ./Lora-F16-LoRA.gguf
