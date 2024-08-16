@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import magic
 from markdownify import markdownify as md
 
@@ -29,7 +30,7 @@ def split_content(content, max_length=100000):
     return parts
 
 
-def get_all_code_files(directory):
+def get_all_code_files(directory) -> list[str]:
     code_files = []
     m = magic.Magic(mime=True)
 
@@ -46,10 +47,27 @@ def get_all_code_files(directory):
             name = os.path.join(root, file)
             r = m.from_file(name)
             if r.startswith('text/'):
+                if name.endswith('.json'):
+                    continue
+                if name.endswith('.yaml'):
+                    continue
+                if name.find('cjcov') != -1:
+                    continue
+                if name.endswith('.html'):
+                    continue
+                if name.endswith('.lock'):
+                    continue
+
                 code_files.append(name)
                 print(name, r)
     return code_files
 
+
+m = re.compile(r'\n{3,}')
+
+# 去除无意义的连续换行
+def clean(s: str) -> str:
+    return re.sub(m, '\n\n', s)
 
 def main():
     docs_dir = 'docs'
@@ -88,6 +106,7 @@ def main():
             html_content = infile.read()
         
         markdown_content = convert_html_to_markdown(html_content)
+        markdown_content = clean(markdown_content)
         
         relative_path = os.path.relpath(html_file, docs_dir)
         markdown_content = f"# {relative_path}\n\n{markdown_content}"
