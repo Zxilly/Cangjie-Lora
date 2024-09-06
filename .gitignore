@@ -4,3 +4,7 @@ code/
 venvw/
 *.gguf
 cangjie.json
+md/
+tmd/
+dataset/
+.idea/

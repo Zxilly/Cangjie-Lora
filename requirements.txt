@@ -1,3 +1,6 @@
 markdownify
 python-magic
 python-magic-bin
+openai
+langchain-text-splitters
+pydantic
