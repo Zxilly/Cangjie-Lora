@@ -4,3 +4,4 @@ python-magic-bin
 openai
 langchain-text-splitters
 pydantic
+spacy

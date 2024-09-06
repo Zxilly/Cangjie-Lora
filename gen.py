@@ -3,7 +3,8 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from openai import AzureOpenAI
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel
+from tqdm import tqdm
 
 endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 api_key = os.getenv("AZURE_OPENAI_API_KEY")
@@ -45,19 +46,39 @@ def generate_alpaca_dialogue(content):
         model="gpt-4o",
         messages=[
             {"role": "system",
-             "content": """You are an AI assistant tasked with converting documentation of standard library for a new programming language 仓颉 into a dialogue-based dataset suitable for supervised fine-tuning (SFT) of large language models. Your goal is to create natural, informative conversations that cover all the important information from the original Markdown document.
-1. Read the provided Markdown document thoroughly.
-2. Identify the main topics, subtopics, and key information points in the document.
-3. Create a series of dialogues between a human and an AI assistant that cover all the identified information.
-4. Ensure that the dialogues are natural, engaging, and diverse in structure.
-5. Include a mix of question types: open-ended, specific, clarification requests, and follow-ups.
-6. Incorporate relevant examples, explanations, and elaborations in the AI's responses.
-7. Use appropriate Markdown formatting in the AI's responses when necessary (e.g., code blocks, lists, emphasis).
-8. Maintain a consistent tone and level of expertise throughout the dialogues.
-9. Ensure that each dialogue exchange is self-contained and coherent.
-10. Always prioritize clarity, correctness, and completeness of information.
-11. Use Chinese for the dialogue.
-12. The document is for programming language 仓颉."""},
+             "content": """你是一位专门研究新编程语言"仓颉"的专家。你的任务是将一份关于仓颉语言的 Markdown 文档转换成 Alphca 格式的对话集合，用于训练大型语言模型。请严格遵循以下步骤，并确保所有输出均使用简体中文：
+1. 仔细阅读整个 Markdown 文档，理解其结构和内容。
+2. 将文档分割成逻辑单元。每个单元可以是一个章节、一个概念解释、一段代码示例或其他独立的信息块。
+3. 创建一个主要对话，其中必须包含完整的逻辑单元。这个对话应该是这样的：
+   - 人类问一个总体性的问题
+   - AI 助手的回答必须包含整个分割后的逻辑单元文档内容，保持原有的结构和详细程度。这份完整文档是必需的，不可省略。
+4. 在主要对话之后，基于其中的信息创建多个补充对话。每个补充对话应该：
+   - 聚焦于文档中的特定主题或概念
+   - 包含更具体的问题和更详细的解答
+   - 可能包含假设的场景或实际应用案例
+5. 对于包含仓颉语言代码的部分：
+   - 创建专门的对话来讨论和解释代码
+   - 在对话中提供代码的具体应用场景和可能的变化
+   - 对于 Markdown 代码块，永远使用 cangjie 语言标识符
+6. 确保生成的对话覆盖文档中的所有重要信息，包括：
+   - 仓颉语言的基本概念和原理
+   - 语法规则和特性
+   - 代码结构和组织方式
+   - 常见用例和最佳实践
+   - 与其他编程语言的比较（如果有）
+7. 使用多样化的对话类型，如：
+   - 概念解释对话
+   - 代码分析对话
+   - 比较讨论
+   - 问题解决对话
+   - 项目规划对话
+8. 在对话中加入一些拟人化的元素，如：
+   - 表达好奇或困惑
+   - 请求进一步解释或举例
+   - 提出假设性问题
+9. 确保对话的语言风格专业且易懂，适合作为教学材料。
+10. 文档是关于编程语言仓颉的，文档中的代码也全部是仓颉语言的代码。
+11. 返回一个对象，包含一个 conversation 属性，其值是一个包含多个对话项的列表。每个对话项包含一个 input 属性和一个 output 属性（对话内容）。对话应该有多组。""",},
             {"role": "user", "content": f"{content}"}
         ],
         response_format=Alphca
@@ -98,12 +119,20 @@ def main(markdown_dir, output_dir, final_output):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    markdown_files = [os.path.join(markdown_dir, f) for f in os.listdir(markdown_dir) if f.endswith('.md')]
+    markdown_files = []
+    for f in os.listdir(markdown_dir):
+        if f.endswith('.md'):
+            output = os.path.join(output_dir, f"{os.path.splitext(f)[0]}.json")
+            if os.path.exists(output):
+                print(f"Skipping {f} as output file already exists...")
+                continue
 
-    with ThreadPoolExecutor() as executor:
+            markdown_files.append(os.path.join(markdown_dir, f))
+
+    with ThreadPoolExecutor(max_workers=75) as executor:
         future_to_file = {executor.submit(process_file, file, output_dir): file for file in markdown_files}
         json_files = []
-        for future in as_completed(future_to_file):
+        for future in tqdm(as_completed(future_to_file), total=len(markdown_files), desc="Processing files"):
             json_files.append(future.result())
 
     merge_json_files(json_files, final_output)
@@ -111,7 +140,7 @@ def main(markdown_dir, output_dir, final_output):
 
 
 if __name__ == "__main__":
-    markdown_dir = "tmd"
+    markdown_dir = "md"
     output_dir = "dataset"
-    final_output = "final_alpaca_dataset.json"
+    final_output = "gpt4o.json"
     main(markdown_dir, output_dir, final_output)

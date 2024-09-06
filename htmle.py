@@ -1,9 +1,9 @@
 import os
 import re
-import markdownify
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
+import markdownify
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def convert_html_to_markdown(html_content):
@@ -34,38 +34,21 @@ def process_html_file(html_file, docs_dir):
         markdown_content = convert_html_to_markdown(main_content)
         markdown_content = clean(markdown_content)
 
+        ar = relative_path
         def add_title(m):
-            return f"# {title_content}\n\n{relative_path}\n\n{m}"
+            return f"# {title_content}\n\n文件路径：{ar}\n\n{m}"
 
         relative_path = relative_path.replace('\\', '-').replace('/', '-')
 
-        # Split the markdown content using MarkdownHeaderTextSplitter
-        header_splitter = MarkdownHeaderTextSplitter(
-            headers_to_split_on=[
-                ("#", "Header 1"),
-                ("##", "Header 2"),
-            ],
-            strip_headers=False
-        )
-        header_splits = header_splitter.split_text(markdown_content)
+        splitter = RecursiveCharacterTextSplitter(chunk_size=50000, chunk_overlap=500, length_function=len)
+        splits = splitter.split_text(markdown_content)
 
-        # Further split each segment if it's over 50,000 characters
-        char_splitter = RecursiveCharacterTextSplitter(chunk_size=50000, chunk_overlap=200)
-
-        final_splits = []
-        for split in header_splits:
-            if len(split.page_content) > 50000:
-                sub_splits = char_splitter.split_text(split.page_content)
-                final_splits.extend(sub_splits)
-            else:
-                final_splits.append(split.page_content)
-
-        for i, split_content in enumerate(final_splits):
+        for i, split_content in enumerate(splits):
             split_filename = f'./md/{relative_path}-part{i + 1}.md'
             with open(split_filename, 'w', encoding='utf-8') as outfile:
                 outfile.write(add_title(split_content))
 
-        print(f"Wrote {len(final_splits)} files for {relative_path}")
+        print(f"Wrote {len(splits)} files for {relative_path}")
 
     except Exception as e:
         print(f"Error processing {html_file}: {e}")
