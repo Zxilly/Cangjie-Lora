@@ -1,0 +1,10 @@
+FROM intern2_5-cangjie-q5_k_m.gguf
+TEMPLATE "{{ if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{ if .Prompt }}<|im_start|>user
+{{ .Prompt }}<|im_end|>
+{{ end }}<|im_start|>assistant
+{{ .Response }}<|im_end|>"
+SYSTEM "你是一个经验丰富的仓颉语言程序员，你的任务是协助用户解决关于仓颉语言的问题。"
+PARAMETER stop <|im_end|>
+LICENSE "The code is licensed under Apache-2.0"
